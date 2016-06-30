@@ -97,19 +97,22 @@ def import_and_hash():
 	data = ''
 	n_info_array = []
 	with open ("neighborhoods.txt", "r") as f:
-	    data=f.read().replace('</li>\\n<li>', ',').replace('\\n                                    <ul class="bullet-list-round">\\n<li>','!!!').replace('</li>\\n</ul>\\n,','***').replace("\\'","'").replace('\xef\xbb\xbf<ul class="bullet-list-round">\\n<li>','').replace('</li>\\n</ul>\\n</li>\\n</ul>\\n</li>\\n</ul>\\n</ul>\r','')
+	    data=f.read().replace('</li>\\n<li>', ',').replace('\\n                                    <ul class="bullet-list-round">\\n<li>','!!!').replace('</li>\\n</ul>\\n,','***')
 	#pprint(data)
 	neighborhoods = data.split('***')
-	for hood in neighborhoods:
-		split_array = hood.split('!!!')
-		cs_arr = split_array[0].split(', ')
-		n_city = cs_arr[0]
-		n_state = cs_arr[1]
-		n_neighborhoods = split_array[1].split(',')
+	#splits by major city ^
+	for hood in neighborhoods: # iterate through all the neighborhood cities
+		split_array = hood.split('!!!') #split_array[1] is a list of neighborhoods delimited by commas
+		cs_arr = split_array[0].split(', ') #splits into the city and state ID
+		n_city = cs_arr[0] #city var
+		n_state = cs_arr[1] #state var
+		n_neighborhoods = split_array[1].split(',') #splits neighborhoods
 		#pprint(n_city)
+
+		#gets counties from statecountycity.txt and matches by comparing city names
 		n_county = ''
 		for x in info_array:
-			if x[1] == n_city:
+			if x[1] == n_city and x[3] == n_state:
 				n_county = x[2]
 				#pprint(n_county)
 		for n in n_neighborhoods:
@@ -118,31 +121,60 @@ def import_and_hash():
 	#pprint(n_info_array)
 
 	info_array_f = info_array + n_info_array
-	pprint('info_array_f created and formatted')
+	#pprint('info_array_f created and formatted')
 	for piece in info_array_f:
 		location_instance = location(piece[0], piece[1], piece[2], piece[3])
 		key = piece[0] + piece[1] + piece[2] + piece[3]
 		#pprint(key)
 		content_hash_table.insert(key, location_instance)
-	pprint('created content_hash_table')
+	#pprint('created content_hash_table')
 
 	#hash table check TESTS
 	#print(content_hash_table.get('West ViewMilwaukee"Milwaukee CountyWI'))
 
 
 def handle_responses():
+	#params is for first page results
+	#sort = 1 finds restaurants by distance, since we don't care about Best matched or Highest Rated
 	params = {
-    'term': 'food',
-    'lang': 'en'
+    'term': 'seafood',
+    'lang': 'en',
+    'sort:': '1'
 	}
+	#param_offset represents the parameters needed to grab second page results
+	params_offset = {
+    'term': 'seafood',
+    'lang': 'en',
+    'limit': '20',
+    'offset': '20',
+    'sort:': '1'
+	}
+	#test obj
+	location_instance = location('NULL', 'Cupertino', 'Santa Clara County', 'CA')
 
-	#response = client.search('San Francisco', **params)
-	#for x in range(0, len(response.businesses)):
-	#	print(response.businesses[x].name)
+	if location_instance.neighborhood != 'NULL':
+		query = location_instance.neighborhood + ', ' + location_instance.city + ', ' + location_instance.state
+	else:
+		query = location_instance.city + ', ' + location_instance.state
+	response = client.search(query, **params)
+	response_2 = client.search(query, **params_offset)
+
+	first_20, second_20 = [],[]
+	for x in range(0, len(response.businesses)): #1st page
+		first_20.append([response.businesses[x].id,response.businesses[x].location.city]) #append [Yelp Business ID, City of Business]
+	for x in range(0, len(response_2.businesses)): #2nd page
+		second_20.append([response_2.businesses[x].id,response_2.businesses[x].location.city]) 
+	all_results = first_20 + second_20 #combine first page and second page results
+	city_restaurants = [] #will hold Yelp Business ID's 
+	for restaurant in all_results: #run through 40 formatted responses
+		if location_instance.city == restaurant[1]: #check if the business is really in the city queried for
+			city_restaurants.append(restaurant[0]) #append the Yelp Business ID to the city_restaurants array
+	pprint(city_restaurants)
+
 
 def main():
-	import_and_hash()
-	#handle_responses()
+	#import_and_hash()
+	handle_responses()
 
 start_time = time.time()
 main()
