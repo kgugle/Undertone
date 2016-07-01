@@ -3,6 +3,7 @@ from yelp.oauth1_authenticator import Oauth1Authenticator
 from pprint import pprint
 import re
 import time
+import math
 
 auth = Oauth1Authenticator(
     consumer_key='',
@@ -79,9 +80,12 @@ class location:
 		self.city = city
 		self.county = county
 		self.state = state
-
 #classes/objects defined, functions run from main below
-content_hash_table = hash_table(1000)
+
+
+content_hash_table = hash_table(5000)
+city_restaurant_hash_table = hash_table(5000)
+
 
 def import_and_hash():
 	citycountystate = []
@@ -121,19 +125,21 @@ def import_and_hash():
 	#pprint(n_info_array)
 
 	info_array_f = info_array + n_info_array
+	#pprint(info_array_f)
 	#pprint('info_array_f created and formatted')
 	for piece in info_array_f:
 		location_instance = location(piece[0], piece[1], piece[2], piece[3])
-		key = piece[0] + piece[1] + piece[2] + piece[3]
+		key = piece[0] + '#' + piece[1] + '#' + piece[2] + '#' + piece[3]
 		#pprint(key)
 		content_hash_table.insert(key, location_instance)
 	#pprint('created content_hash_table')
 
 	#hash table check TESTS
 	#print(content_hash_table.get('West ViewMilwaukee"Milwaukee CountyWI'))
+	return info_array_f
 
 
-def handle_responses():
+def handle_responses(location_arr):
 	#params is for first page results
 	#sort = 1 finds restaurants by distance, since we don't care about Best matched or Highest Rated
 	params = {
@@ -150,7 +156,7 @@ def handle_responses():
     'sort:': '1'
 	}
 	#test obj
-	location_instance = location('NULL', 'Cupertino', 'Santa Clara County', 'CA')
+	location_instance = location(location_arr[0],location_arr[1],location_arr[2],location_arr[3])
 
 	if location_instance.neighborhood != 'NULL':
 		query = location_instance.neighborhood + ', ' + location_instance.city + ', ' + location_instance.state
@@ -166,15 +172,71 @@ def handle_responses():
 		second_20.append([response_2.businesses[x].id,response_2.businesses[x].location.city]) 
 	all_results = first_20 + second_20 #combine first page and second page results
 	city_restaurants = [] #will hold Yelp Business ID's 
+
 	for restaurant in all_results: #run through 40 formatted responses
 		if location_instance.city == restaurant[1]: #check if the business is really in the city queried for
 			city_restaurants.append(restaurant[0]) #append the Yelp Business ID to the city_restaurants array
-	pprint(city_restaurants)
+	#pprint(city_restaurants)
 
+	number = len(city_restaurants)
+
+	key = location_instance.neighborhood + '#' + location_instance.city + '#' + location_instance.county + '#' + location_instance.state
+	#pprint(key)
+	city_restaurant_hash_table.insert(key, city_restaurants)
+	return [key, number, location_instance.county, city_restaurants]
+
+def rate(business_id_array):
+	#total score for that city's restaurants for the particular cuisine
+	score = 0
+	#params speciifies only the english language
+	params = {
+    'lang': 'en'
+	}
+	#if no restaurants exist, then return a score of 0
+	if len(business_id_array) == 0:
+		score = 0
+		return score
+	else:
+		#go through all the restaurants in the city
+		for business_id in business_id_array:
+			response = client.get_business(business_id, **params)
+			try:
+				#exponent is LOG(review_count), look at the project's paper for an explanation
+				exponent = math.log(response.business.review_count)
+			except AttributeError:
+				#no reviews means review_count = 0 and the exponent is set to 0 to avoid a math error
+				exponent = 1
+			try:
+				#set base to the rating of the restaurant
+				base = response.business.rating
+			except AttributeError:
+				#no reviews means base = 0
+				base = 0
+			total = base ** (exponent)
+			#add all totals to score
+			#score is the number/value of restaurants for the city
+			score += total
+		return score
 
 def main():
-	#import_and_hash()
-	handle_responses()
+	info_array_f = import_and_hash()
+	file = open("UNDERTONE-1.txt", "w")
+	counter = 0
+	for location in info_array_f:
+		line_cr = handle_responses(location)
+		#pprint(line_cr)
+
+		score = rate(line_cr[3])
+		county = line_cr[2]
+		num = line_cr[1]
+		#add num to file so it can be used later for averages
+		final_write = [county, num, str(score)]
+		pprint(final_write)
+
+		file.write(', '.join([str(x) for x in final_write]))
+		file.write('\n')
+		counter+=1
+	file.close()
 
 start_time = time.time()
 main()
