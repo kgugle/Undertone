@@ -14,14 +14,35 @@
         <!--[if lt IE 8]>
             <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
-
-        <p>Hello world!</p>
+        <article>
+            <p>Hello world!</p>
+        </article>
 
         <script src="https://code.jquery.com/jquery-1.12.2.min.js"></script>
         <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.12.2.min.js"><\/script>')</script>
         <script src="public/javascripts/bootstrap/bootstrap.min.js"></script>
-        <script src="public/javascripts/d3/d3.min.js"></script>
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <script src="https://d3js.org/topojson.v1.min.js"></script>
         <script src="public/javascripts/main.js"></script>
+
+        <script>
+            var svg = d3.select("article").append("svg")
+                .attr("width", document.documentElement.clientWidth)
+                .attr("height", document.documentElement.clientHeight);
+
+            var projection = d3.geoAlbersUsa()
+            var path = d3.geoPath().projection(projection);
+
+            d3.json("public/javascripts/us-county.json", function(us) {
+                console.log(us);
+
+                svg.selectAll("append")
+                    .data(topojson.feature(us, us.objects.counties).features)
+                    .enter()
+                    .append("path")
+                    .attr("d", path);
+            });
+        </script>
 
         <!-- Google Analytics: change UA-XXXXX-Y to be site's ID. -->
         <script>
