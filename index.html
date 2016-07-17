@@ -30,17 +30,21 @@
                 .attr("width", document.documentElement.clientWidth)
                 .attr("height", document.documentElement.clientHeight);
 
-            var projection = d3.geoAlbersUsa()
+            var projection = d3.geoAlbersUsa();
             var path = d3.geoPath().projection(projection);
 
             d3.json("public/javascripts/us-county.json", function(us) {
-                console.log(us);
-
                 svg.selectAll("append")
                     .data(topojson.feature(us, us.objects.counties).features)
                     .enter()
                     .append("path")
-                    .attr("d", path);
+                    .attr("d", path)
+                    .on("mouseover", function(d) {
+                        d3.select(this).style("fill", "red");
+                    })
+                    .on("mouseout", function(d) {
+                        d3.select(this).style("fill", "black");
+                    });
             });
         </script>
 
