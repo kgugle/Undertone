@@ -34,8 +34,6 @@
             var path = d3.geoPath().projection(projection);
 
             d3.json("public/javascripts/us-county.json", function(us) {
-                console.log(us);
-
                 svg.selectAll("append")
                     .data(topojson.feature(us, us.objects.counties).features)
                     .enter()
